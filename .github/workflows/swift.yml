@@ -1,0 +1,59 @@
+name: Swift Build & Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  swift_build:
+    name: swift build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-11, macos-10.15, ubuntu-20.04, ubuntu-18.04]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Swift version
+      run: swift --version
+    - name: Build
+      if: ${{ matrix.os == 'macos-11' || matrix.os == 'macos-10.15' }}
+      run: swift build -v | tee swift-build-${{ matrix.os }}_x86_64.log && exit ${PIPESTATUS[0]}
+    - name: Build with enable test discovery on platforms without Objective-C runtime
+      if: ${{ matrix.os == 'ubuntu-20.04' || matrix.os == 'ubuntu-18.04' }}
+      run: swift build -v --enable-test-discovery | tee swift-build-${{ matrix.os }}_x86_64.log && exit ${PIPESTATUS[0]}
+    - name: Upload swift build log
+      if: always()
+      uses: actions/upload-artifact@v2
+      with:
+        name: swift build log (${{ matrix.os }}, x86_64)
+        path: swift-build-${{ matrix.os }}_x86_64.log
+  
+  swift_test:
+    name: swift test
+    needs: swift_build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-11, macos-10.15, ubuntu-20.04, ubuntu-18.04]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Swift version
+      run: swift --version
+    - name: Run tests
+      if: ${{ matrix.os == 'macos-11' || matrix.os == 'macos-10.15' }}
+      run: swift test -v | tee swift-test-${{ matrix.os }}_x86_64.log && exit ${PIPESTATUS[0]}
+    - name: Run tests with enable test discovery on platforms without Objective-C runtime
+      if: ${{ matrix.os == 'ubuntu-20.04' || matrix.os == 'ubuntu-18.04' }}
+      run: swift test -v --enable-test-discovery | tee swift-test-${{ matrix.os }}_x86_64.log && exit ${PIPESTATUS[0]}
+    - name: Upload swift test log
+      if: always()
+      uses: actions/upload-artifact@v2
+      with:
+        name: swift test log (${{ matrix.os }}, x86_64)
+        path: swift-test-${{ matrix.os }}_x86_64.log
